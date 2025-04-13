@@ -1,115 +1,127 @@
 import { useState } from "react";
-import Header from "@/components/Header";
-import ChatPanel from "@/components/ChatPanel";
-import GalleryPanel from "@/components/GalleryPanel";
-import { Message, Painting, ConversationStatus } from "@/lib/types";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
-import { generatePaintings } from "@/lib/api";
 import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import ChatPanel from "@/components/ChatPanel";
+import GalleryPanel from "@/components/GalleryPanel";
+import { Message, Painting } from "@/types";
 
-const Home = () => {
-  const [messages, setMessages] = useState<Message[]>([{
-    id: "1",
-    content: "Hello! I'm your Personal Painter. I'd love to create art that resonates with you. Tell me about an emotion, experience, or idea that's meaningful to you.",
-    sender: "ai",
-    timestamp: new Date(),
-  }]);
-
+export default function Home() {
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      role: "assistant",
+      content: "Welcome to Personal Painter! Tell me about an emotion, experience, or idea you'd like to explore through art. I'll listen and create unique paintings inspired by our conversation.",
+      timestamp: Date.now(),
+    },
+  ]);
   const [paintings, setPaintings] = useState<Painting[]>([]);
-  const [conversationStatus, setConversationStatus] = useState<ConversationStatus>("active");
+  const [prompt, setPrompt] = useState("");
+  const [generatingProgress, setGeneratingProgress] = useState(0);
+  const [generatingStatus, setGeneratingStatus] = useState("");
   const { toast } = useToast();
 
-  const { mutate: generate, isPending: isGenerating } = useMutation({
-    mutationFn: () => generatePaintings(messages),
-    onSuccess: (data) => {
-      setPaintings(data);
-      setConversationStatus("completed");
+  const generateMutation = useMutation({
+    mutationFn: async () => {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setGeneratingProgress((prev) => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return prev;
+          }
+          return prev + 10;
+        });
+        
+        const statuses = [
+          "Analyzing conversation...",
+          "Crafting painting prompt...",
+          "Generating artwork...",
+          "Adding final touches..."
+        ];
+        
+        const statusIndex = Math.floor((generatingProgress / 100) * statuses.length);
+        setGeneratingStatus(statuses[Math.min(statusIndex, statuses.length - 1)]);
+      }, 1500);
       
-      // Add a completion message
-      setMessages(prev => [
-        ...prev,
-        {
-          id: Date.now().toString(),
-          content: "I've created three personalized paintings inspired by our conversation. You can view them in the gallery panel.",
-          sender: "ai",
-          timestamp: new Date(),
-        }
-      ]);
+      // Make the actual API request
+      const response = await apiRequest("POST", "/api/conversation/generate", {
+        messages,
+      });
+      
+      clearInterval(progressInterval);
+      setGeneratingProgress(100);
+      setGeneratingStatus("Complete!");
+      
+      return response.json();
     },
-    onError: (error) => {
+    onSuccess: (data) => {
+      setPaintings(data.paintings);
+      setPrompt(data.prompt);
+      toast({
+        title: "Success",
+        description: "Your paintings have been created!",
+      });
+    },
+    onError: () => {
       toast({
         title: "Error",
-        description: `Failed to generate paintings: ${error instanceof Error ? error.message : "Unknown error"}`,
+        description: "Failed to generate paintings. Please try again.",
         variant: "destructive",
       });
-      setConversationStatus("active");
-    }
+    },
   });
 
-  const addMessage = async (content: string, sender: "user" | "ai") => {
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      content,
-      sender,
-      timestamp: new Date(),
-    };
-
-    setMessages(prev => [...prev, newMessage]);
-    
-    if (sender === "user") {
-      try {
-        const response = await apiRequest("POST", "/api/chat", { message: content });
-        const data = await response.json();
-        
-        setMessages(prev => [
-          ...prev,
-          {
-            id: (Date.now() + 1).toString(),
-            content: data.response,
-            sender: "ai",
-            timestamp: new Date(),
-          }
-        ]);
-      } catch (error) {
-        toast({
-          title: "Error",
-          description: `Failed to get AI response: ${error instanceof Error ? error.message : "Unknown error"}`,
-          variant: "destructive",
-        });
-      }
-    }
+  const handleNewSession = () => {
+    setMessages([
+      {
+        role: "assistant",
+        content: "Welcome to Personal Painter! Tell me about an emotion, experience, or idea you'd like to explore through art. I'll listen and create unique paintings inspired by our conversation.",
+        timestamp: Date.now(),
+      },
+    ]);
+    setPaintings([]);
+    setPrompt("");
+    setGeneratingProgress(0);
+    setGeneratingStatus("");
   };
 
-  const startNewConversation = () => {
-    setMessages([{
-      id: "1",
-      content: "Hello! I'm your Personal Painter. I'd love to create art that resonates with you. Tell me about an emotion, experience, or idea that's meaningful to you.",
-      sender: "ai",
-      timestamp: new Date(),
-    }]);
-    setPaintings([]);
-    setConversationStatus("active");
+  const handleGeneratePaintings = () => {
+    if (messages.length < 4) {
+      toast({
+        title: "Not enough conversation",
+        description: "Please chat a bit more to generate better paintings.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    generateMutation.mutate();
   };
 
   return (
-    <div className="flex flex-col h-screen">
-      <Header onNewPainting={startNewConversation} />
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
+    <div className="w-full h-full flex flex-col min-h-screen">
+      <Header onNewSession={handleNewSession} />
+      
+      <main className="flex-grow flex flex-col md:flex-row">
         <ChatPanel 
-          messages={messages} 
-          onSendMessage={content => addMessage(content, "user")}
-          onGeneratePaintings={generate}
-          conversationStatus={conversationStatus}
-          isGenerating={isGenerating}
+          messages={messages}
+          setMessages={setMessages}
+          onGeneratePaintings={handleGeneratePaintings}
+          isGenerating={generateMutation.isPending}
         />
+        
         <GalleryPanel 
-          paintings={paintings} 
-          onStartChat={() => document.getElementById("message-input")?.focus()}
+          paintings={paintings}
+          prompt={prompt}
+          isGenerating={generateMutation.isPending}
+          generatingProgress={generatingProgress}
+          generatingStatus={generatingStatus}
         />
       </main>
+      
+      <Footer />
     </div>
   );
-};
-
-export default Home;
+}
