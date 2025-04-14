@@ -1,6 +1,23 @@
+import * as dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Get the directory name of the current module using import.meta.url
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Construct the path to the .env file
+const envPath = path.resolve(__dirname, '../.env'); // Assuming .env is one directory level up from server directory
+
+console.log("Configuring dotenv..."); // Added log before dotenv.config()
+dotenv.config({ path: envPath });
+console.log("dotenv configuration complete."); // Added log after dotenv.config()
+
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+
+console.log(process.env); // Debugging: Print all environment variables - AFTER dotenv.config()
 
 const app = express();
 app.use(express.json());
@@ -36,35 +53,26 @@ app.use((req, res, next) => {
   next();
 });
 
+// ... (previous code remains the same)
+
 (async () => {
   const server = await registerRoutes(app);
 
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  // ... (error handler middleware)
 
-    res.status(status).json({ message });
-    throw err;
-  });
-
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on port 5000
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
   const port = 5000;
   server.listen({
     port,
-    host: "0.0.0.0",
-    reusePort: true,
+    host: "127.0.0.1",
+    // removed reusePort: true
   }, () => {
-    log(`serving on port ${port}`);
+    // Update log message to reflect the specific address
+    log(`serving on http://127.0.0.1:${port}`);
   });
 })();
