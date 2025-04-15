@@ -2,7 +2,7 @@ var myHeaders = new Headers();
 myHeaders.append("Content-Type", "application/json");
 
 var raw = JSON.stringify({
-    "key" : "CTrUImCbjDMjGYH8fPys9UYBqhem6sMiVSoSvdKSKDhl13pvIRpyZSmPuKq3", // Remember to put your API key!
+    "key" : "", // Remember to put your API key!
     "prompt": "ultra realistic close up portrait ((beautiful pale cyberpunk female with heavy black eyeliner))",
     "negative_prompt": "bad quality",
     "width": "512",
