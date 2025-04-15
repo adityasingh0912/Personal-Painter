@@ -78,6 +78,24 @@ Contributions are welcome! If you'd like to contribute to the project, please fo
 3.  Implement your changes.
 4.  Submit a pull request.
 
+## Screenshots
+
+Here are some screenshots of the Personal Painter application:
+
+![Screenshot of Personal Painter - Main Interface](assets/ss1.png)
+
+![Screenshot of Personal Painter - Conversation View](assets/ss2.png)
+
+![Screenshot of Personal Painter - Generated Art](assets/ss3.png)
+
+![Screenshot of Personal Painter](assets/ss4.png)
+
+![Screenshot of Personal Painter](assets/ss5.png)
+
+![Screenshot of Personal Painter](assets/ss6.png)
+
+![Diagram of project](assets/diagram.png)
+
 ## License
 
 [MIT](LICENSE)
